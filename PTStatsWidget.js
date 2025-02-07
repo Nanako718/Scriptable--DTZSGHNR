@@ -1,21 +1,33 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
-// icon-color: light-brown; icon-glyph: magic;
+// icon-color: deep-gray; icon-glyph: magic;
+/**
+ * @fileoverview PT站点数据统计小组件
+ * @author DTZSGHNR
+ * @version 1.0.0
+ * @description 用于展示PT站点的上传、下载、魔力值等数据的Scriptable小组件
+ * @date 2024-03-21
+ */
 
-// 登录配置
+/** 登录接口配置 */
 const LOGIN_CONFIG = {
-    baseUrl: "https://your-domain.com",  // 修改为你的域名
+    /** API基础地址 */
+    baseUrl: "https://your-domain.com", // 请替换为实际的API基础地址
+    /** 登录接口路径 */
     loginPath: "/api/v1/login/access-token",
+    /** 数据统计接口路径 */
     statisticPath: "/api/v1/plugin/page/SiteStatistic"
 };
 
-// 配置键名
+/** 配置存储键名 */
 const CONFIG_KEY = "moviepilot_display_config";
 
-// 默认配置（只保留可配置的选项）
+/** 默认显示配置 */
 const DEFAULT_CONFIG = {
-    bonus: true,     // 魔力值
-    seeds: true      // 种数
+    /** @type {boolean} 是否显示魔力值 */
+    bonus: true,
+    /** @type {boolean} 是否显示种子数 */
+    seeds: true
 };
 
 // 保存登录凭证
@@ -347,48 +359,54 @@ async function getConfig() {
     }
 }
 
-// 修改计算列宽的函数
+/**
+ * 计算列宽配置
+ * @param {Object} config - 显示配置项
+ * @returns {Object} 各列宽度配置
+ */
 const calculateColumnWidths = (config) => {
-    const totalWidth = 300; // 增加总宽度
+    /** 组件总宽度 */
+    const totalWidth = 290;
+    /** 列间距 */
     const spacing = 3;
     
-    // 调整基础宽度分配
+    /** 基础列宽配置 */
     const baseWidths = {
-        site: 55,      // 增加站点名称宽度
-        upload: 45,    // 增加上传宽度
-        download: 45,  // 增加下载宽度
-        ratio: 45,     // 增加分享率宽度
-        bonus: 45,     // 增加魔力值宽度
-        seeds: 35,     // 增加种数宽度
-        size: 42       // 增加体积宽度
+        site: 50,      // 站点名称列宽
+        upload: 48,    // 上传列宽
+        download: 48,  // 下载列宽
+        ratio: 38,     // 分享率列宽
+        bonus: config.bonus && !config.seeds ? 58 : 38,  // 魔力值列宽（单独显示时加宽）
+        seeds: 28,     // 种数列宽
+        size: 48       // 体积列宽
     };
     
-    // 计算显示的列
+    // 确定要显示的列
     let visibleColumns = ['site', 'upload', 'download', 'ratio', 'size'];
     if (config.bonus) visibleColumns.push('bonus');
     if (config.seeds) visibleColumns.push('seeds');
     
-    // 计算总间距宽度
+    // 计算列间距总宽度
     const totalSpacing = (visibleColumns.length - 1) * spacing;
     
-    // 计算可用于列的实际宽度
+    // 计算可用内容宽度
     const availableWidth = totalWidth - totalSpacing;
     
-    // 计算基础总宽度
+    // 计算基础宽度总和
     const baseTotal = visibleColumns.reduce((sum, key) => sum + baseWidths[key], 0);
     
-    // 计算每列可以分配的额外宽度
+    // 计算可分配的额外宽度
     const extraWidth = Math.max(0, availableWidth - baseTotal);
     
-    // 根据列的重要性分配额外空间
+    // 列宽度优先级配置
     const priorities = {
-        site: 2,      // 站点名称优先级
-        upload: 1.2,  // 增加数值列优先级
+        site: 2,       // 站点名称优先级最高
+        upload: 1.2,   // 数据列标准优先级
         download: 1.2,
         ratio: 1.2,
         size: 1.2,
-        bonus: 1.2,
-        seeds: 1
+        bonus: config.bonus && !config.seeds ? 2 : 1.2,  // 魔力值单独显示时提高优先级
+        seeds: 1       // 种数优先级最低
     };
     
     // 计算优先级总和
@@ -397,7 +415,7 @@ const calculateColumnWidths = (config) => {
     // 根据优先级分配额外空间
     const getExtraSpace = (key) => Math.floor((extraWidth * priorities[key]) / totalPriority);
     
-    // 返回调整后的宽度
+    // 返回最终列宽配置
     return {
         site: baseWidths.site + getExtraSpace('site'),
         upload: baseWidths.upload + getExtraSpace('upload'),
@@ -451,7 +469,10 @@ async function showConfigForm() {
     return config;
 }
 
-// 创建小组件
+/**
+ * 创建数据展示小组件
+ * @returns {ListWidget} 配置完成的小组件实例
+ */
 async function createWidget() {
     const widget = new ListWidget();
     widget.backgroundColor = new Color("#282a36"); // Dracula Background
@@ -551,31 +572,31 @@ async function createWidget() {
         
         headerDefs.forEach(header => {
             const stack = headerStack.addStack();
-            stack.size = new Size(header.width, 15); 
+            stack.size = new Size(header.width, 15);
             stack.layoutHorizontally();
-            stack.centerAlignContent(); // 添加垂直居中对齐
+            stack.centerAlignContent();
             
             const text = stack.addText(header.text);
-            text.font = Font.mediumSystemFont(12);
-            text.textColor = new Color("#ff79c6"); // Dracula Pink
+            text.font = Font.systemFont(10);
+            text.textColor = new Color("#ff79c6");
             text.lineLimit = 1;
             
             stack.addSpacer();
         });
         
-        widget.addSpacer(8); // 增加表头和数据之间的间距从5到8
+        widget.addSpacer(8);
         
         // 显示站点数据
         if (!data.sites || data.sites.length === 0) {
             widget.addSpacer(4);
             const errorText = widget.addText("暂无站点数据");
-            errorText.textColor = new Color("#ff5555"); // Dracula Red
+            errorText.textColor = new Color("#ff5555");
             errorText.font = Font.mediumSystemFont(14);
         } else {
             data.sites.forEach(site => {
                 const rowStack = widget.addStack();
                 rowStack.layoutHorizontally();
-                rowStack.spacing = 3; // 减小间距
+                rowStack.spacing = 3;
                 
                 const rowData = [
                     {key: 'site', value: site.name, width: columnWidths.site, color: new Color("#f8f8f2")}, // Foreground
@@ -595,14 +616,17 @@ async function createWidget() {
                     stack.size = new Size(width, 15);
                     stack.layoutHorizontally();
                     
-                    const text = stack.addText(value);
-                    text.font = Font.systemFont(10);
+                    let displayValue = value;
+                    if (index === 0) { // 站点名称列
+                        if (value.length > 8) {
+                            displayValue = value.slice(0, 7) + '…';
+                        }
+                    }
+                    
+                    const text = stack.addText(displayValue);
+                    text.font = Font.systemFont(9); // 数据行保持9号字体
                     text.textColor = color;
                     text.lineLimit = 1;
-                    
-                    if (index === 0 && config.site) {
-                        text.minimumScaleFactor = 0.5;
-                    }
                     
                     stack.addSpacer();
                 });
