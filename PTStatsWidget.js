@@ -6,13 +6,13 @@
  * @author DTZSGHNR
  * @version 1.0.0
  * @description 用于展示PT站点的上传、下载、魔力值等数据的Scriptable小组件
- * @date 2024-03-21
+ * @date 2025-02-07
  */
 
 /** 登录接口配置 */
 const LOGIN_CONFIG = {
     /** API基础地址 */
-    baseUrl: "https://your-domain.com", // 请替换为实际的API基础地址
+    baseUrl: "https://your-domain.com",
     /** 登录接口路径 */
     loginPath: "/api/v1/login/access-token",
     /** 数据统计接口路径 */
@@ -507,7 +507,7 @@ async function createWidget() {
         // 创建标题行容器
         const titleRow = widget.addStack();
         titleRow.layoutHorizontally();
-        titleRow.bottomAlignContent(); // 添加底部对齐
+        titleRow.bottomAlignContent();
         titleRow.spacing = 10;
         
         // 左侧标题文本
@@ -515,10 +515,15 @@ async function createWidget() {
         titleText.font = Font.boldSystemFont(16);
         titleText.textColor = new Color("#f8f8f2"); // Dracula Foreground
         
-        titleRow.addSpacer();
+        widget.addSpacer(4);
         
-        // 右侧统计数据容器
-        const statsStack = titleRow.addStack();
+        // 创建统计数据和时间的容器
+        const statsRow = widget.addStack();
+        statsRow.layoutHorizontally();
+        statsRow.spacing = 8;
+        
+        // 左侧统计数据
+        const statsStack = statsRow.addStack();
         statsStack.layoutHorizontally();
         statsStack.spacing = 8;
         
@@ -541,6 +546,17 @@ async function createWidget() {
         const sizeText = statsStack.addText(`💾${data.seedSize}`);
         sizeText.font = Font.systemFont(8);
         sizeText.textColor = new Color("#8be9fd"); // Dracula Cyan
+        
+        statsRow.addSpacer(); // 添加弹性空间，将时间推到右边
+        
+        // 添加更新时间
+        const now = new Date();
+        const timeText = statsRow.addText(
+            `⏱️${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+        );
+        timeText.font = Font.systemFont(8);
+        timeText.textColor = new Color("#6272a4");
+        timeText.lineLimit = 1;
         
         widget.addSpacer(1);
         
@@ -636,7 +652,7 @@ async function createWidget() {
     } catch (error) {
         console.error("创建小组件失败:", error);
         const errorText = widget.addText("数据获取失败");
-        errorText.textColor = new Color("#ff5555"); // Dracula Red
+        errorText.textColor = new Color("#ff5555");
         errorText.font = Font.mediumSystemFont(14);
     }
     
