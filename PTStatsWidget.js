@@ -454,7 +454,7 @@ async function showConfigForm() {
 // 创建小组件
 async function createWidget() {
     const widget = new ListWidget();
-    widget.backgroundColor = new Color("#1E2329");
+    widget.backgroundColor = new Color("#282a36"); // Dracula Background
     widget.setPadding(5, 16, 5, 16);
     
     // 检查登录状态
@@ -463,7 +463,7 @@ async function createWidget() {
         // 未登录状态显示
         const titleText = widget.addText("MoviePilot 小组件");
         titleText.font = Font.boldSystemFont(16);
-        titleText.textColor = Color.white();
+        titleText.textColor = new Color("#f8f8f2"); // Dracula Foreground
         
         widget.addSpacer(10);
         
@@ -492,7 +492,7 @@ async function createWidget() {
         // 左侧标题文本
         const titleText = titleRow.addText("PT站点数据统计");
         titleText.font = Font.boldSystemFont(16);
-        titleText.textColor = Color.white();
+        titleText.textColor = new Color("#f8f8f2"); // Dracula Foreground
         
         titleRow.addSpacer();
         
@@ -503,23 +503,23 @@ async function createWidget() {
         
         // 上传统计 - 绿色
         const uploadText = statsStack.addText(`↑${data.upload}`);
-        uploadText.font = Font.systemFont(8); // 调整字体大小
-        uploadText.textColor = new Color("#4CAF50");
+        uploadText.font = Font.systemFont(8);
+        uploadText.textColor = new Color("#50fa7b"); // Dracula Green
         
         // 下载统计 - 红色
         const downloadText = statsStack.addText(`↓${data.download}`);
         downloadText.font = Font.systemFont(8);
-        downloadText.textColor = new Color("#F44336");
+        downloadText.textColor = new Color("#ff5555"); // Dracula Red
         
         // 做种数统计
         const seedText = statsStack.addText(`📦${data.seedCount}`);
         seedText.font = Font.systemFont(8);
-        seedText.textColor = Color.white();
+        seedText.textColor = new Color("#bd93f9"); // Dracula Purple
         
         // 做种体积统计
         const sizeText = statsStack.addText(`💾${data.seedSize}`);
         sizeText.font = Font.systemFont(8);
-        sizeText.textColor = Color.white();
+        sizeText.textColor = new Color("#8be9fd"); // Dracula Cyan
         
         widget.addSpacer(1);
         
@@ -527,7 +527,7 @@ async function createWidget() {
         const divider = widget.addStack();
         const dividerLine = divider.addText("─".repeat(50));
         dividerLine.font = Font.lightSystemFont(6);
-        dividerLine.textColor = new Color("#48484A");
+        dividerLine.textColor = new Color("#6272a4"); // Dracula Comment
         
         widget.addSpacer(4);
         
@@ -557,7 +557,7 @@ async function createWidget() {
             
             const text = stack.addText(header.text);
             text.font = Font.mediumSystemFont(12);
-            text.textColor = new Color("#8E8E93");
+            text.textColor = new Color("#ff79c6"); // Dracula Pink
             text.lineLimit = 1;
             
             stack.addSpacer();
@@ -569,7 +569,7 @@ async function createWidget() {
         if (!data.sites || data.sites.length === 0) {
             widget.addSpacer(4);
             const errorText = widget.addText("暂无站点数据");
-            errorText.textColor = new Color("#F44336");
+            errorText.textColor = new Color("#ff5555"); // Dracula Red
             errorText.font = Font.mediumSystemFont(14);
         } else {
             data.sites.forEach(site => {
@@ -578,13 +578,13 @@ async function createWidget() {
                 rowStack.spacing = 3; // 减小间距
                 
                 const rowData = [
-                    {key: 'site', value: site.name, width: columnWidths.site, color: Color.white()},
-                    {key: 'upload', value: site.upload, width: columnWidths.upload, color: new Color("#4CAF50")},
-                    {key: 'download', value: site.download, width: columnWidths.download, color: new Color("#F44336")},
-                    {key: 'ratio', value: site.ratio, width: columnWidths.ratio, color: Color.white()},
-                    {key: 'bonus', value: site.bonus, width: columnWidths.bonus, color: new Color("#8E8E93")},
-                    {key: 'seeds', value: site.seeds, width: columnWidths.seeds, color: new Color("#8E8E93")},
-                    {key: 'size', value: site.size, width: columnWidths.size, color: new Color("#8E8E93")}
+                    {key: 'site', value: site.name, width: columnWidths.site, color: new Color("#f8f8f2")}, // Foreground
+                    {key: 'upload', value: site.upload, width: columnWidths.upload, color: new Color("#50fa7b")}, // Green
+                    {key: 'download', value: site.download, width: columnWidths.download, color: new Color("#ff5555")}, // Red
+                    {key: 'ratio', value: site.ratio, width: columnWidths.ratio, color: new Color("#ffb86c")}, // Orange
+                    {key: 'bonus', value: site.bonus, width: columnWidths.bonus, color: new Color("#bd93f9")}, // Purple
+                    {key: 'seeds', value: site.seeds, width: columnWidths.seeds, color: new Color("#8be9fd")}, // Cyan
+                    {key: 'size', value: site.size, width: columnWidths.size, color: new Color("#f1fa8c")} // Yellow
                 ].filter(item => {
                     return ['site', 'upload', 'download', 'ratio', 'size'].includes(item.key) || 
                            config[item.key];
@@ -612,7 +612,7 @@ async function createWidget() {
     } catch (error) {
         console.error("创建小组件失败:", error);
         const errorText = widget.addText("数据获取失败");
-        errorText.textColor = new Color("#F44336");
+        errorText.textColor = new Color("#ff5555"); // Dracula Red
         errorText.font = Font.mediumSystemFont(14);
     }
     
