@@ -547,12 +547,13 @@ async function createWidget() {
         // 创建表头
         const headerStack = widget.addStack();
         headerStack.layoutHorizontally();
-        headerStack.spacing = 3; // 减小间距
+        headerStack.spacing = 3;
         
         headerDefs.forEach(header => {
             const stack = headerStack.addStack();
-            stack.size = new Size(header.width, 12);
+            stack.size = new Size(header.width, 15); 
             stack.layoutHorizontally();
+            stack.centerAlignContent(); // 添加垂直居中对齐
             
             const text = stack.addText(header.text);
             text.font = Font.mediumSystemFont(12);
@@ -562,7 +563,7 @@ async function createWidget() {
             stack.addSpacer();
         });
         
-        widget.addSpacer(5);
+        widget.addSpacer(8); // 增加表头和数据之间的间距从5到8
         
         // 显示站点数据
         if (!data.sites || data.sites.length === 0) {
