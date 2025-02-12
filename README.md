@@ -102,6 +102,7 @@ MIT License
 ## 致谢
 
 感谢以下项目的支持：
-- Scriptable
-- MoviePilot
-- BigMe.Pro 
+- [Scriptable](https://apps.apple.com/us/app/scriptable/id1405459188?uo=4)
+- [MoviePilot V2](https://github.com/jxxghp/MoviePilot)
+- [BigMe.Pro](https://app.bigmess.org) 
+- [@2Ya](https://github.com/dompling)
