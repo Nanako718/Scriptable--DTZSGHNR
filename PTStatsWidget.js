@@ -10,7 +10,7 @@
  * @changelog
  * v1.1.0 - 2025-02-13
  * - 引入DmYY框架重构代码
- * v1.0.0 - 2025-02-7
+ * v1.0.0 - 2025-02-10
  * - 首次发布
  */
 
@@ -24,14 +24,19 @@ class Widget extends DmYY {
         
         // 设置默认配置
         this.defaultData = {
-            refreshInterval: 5,
             bonus: true,
             seeds: true,
             baseUrl: "", // 用户需要配置自己的服务器地址
             loginPath: "/api/v1/login/access-token",
-            statisticPath: "/api/v1/plugin/page/SiteStatistic",
-            cookie: ''
+            statisticPath: "/api/v1/site/userdata/latest",
+            sitePath: "/api/v1/site/", // 添加站点信息API路径
+            cookie: '',
+            username: '', // 存储用户名
+            password: ''  // 存储密码
         };
+        
+        // 站点名称缓存
+        this.siteNames = {};
         
         // 根据是否已登录显示不同的菜单
         this.registerAction(
@@ -51,12 +56,6 @@ class Widget extends DmYY {
             '服务器设置',
             this.setServerConfig.bind(this),
             { name: 'server.rack', color: '#50fa7b' }
-        );
-
-        this.registerAction(
-            '刷新设置',
-            this.setRefreshInterval.bind(this),
-            { name: 'arrow.clockwise.circle', color: '#8be9fd' }
         );
 
         // 添加显示设置菜单
@@ -112,19 +111,68 @@ class Widget extends DmYY {
 
     async init() {
         try {
-            if (!this.settings.refreshInterval) {
-                this.settings.refreshInterval = 5;
-            }
-            // 移除baseUrl的默认值设置，确保用户必须配置
             if (!this.settings.baseUrl) {
                 console.log("未配置服务器地址");
                 return false;
             }
+            
+            // 获取站点名称映射
+            await this.fetchSiteNames();
+            
             return true;
         } catch (e) {
             console.log(e);
             return false;
         }
+    }
+
+    // 获取站点名称映射
+    async fetchSiteNames() {
+        try {
+            const baseUrl = this.settings.baseUrl || this.defaultData.baseUrl;
+            const sitePath = this.settings.sitePath || this.defaultData.sitePath;
+            
+            // 构建完整的API URL
+            const apiUrl = baseUrl + (baseUrl.endsWith('/') ? '' : '/') + 
+                          (sitePath.startsWith('/') ? sitePath.substring(1) : sitePath);
+            
+            console.log("请求站点信息URL:", apiUrl);
+            
+            const request = new Request(apiUrl);
+            request.headers = {
+                'cookie': this.settings.cookie,
+                'authorization': `Bearer ${this.settings.cookie.replace('MoviePilot=', '')}`,
+                'accept': 'application/json',
+                'user-agent': 'Mozilla/5.0'
+            };
+            request.timeoutInterval = 20;
+            
+            console.log("发送站点信息请求...");
+            const response = await request.loadJSON();
+            console.log("收到站点信息响应:", JSON.stringify(response));
+            
+            if (!response) {
+                throw new Error("站点信息响应数据为空");
+            }
+            
+            // 更新站点名称映射
+            this.siteNames = {};
+            response.forEach(site => {
+                if (site.domain && site.name) {
+                    this.siteNames[site.domain] = site.name;
+                }
+            });
+            
+            return true;
+        } catch (error) {
+            console.error("获取站点信息失败:", error);
+            return false;
+        }
+    }
+
+    // 获取站点名称
+    getSiteName(domain) {
+        return this.siteNames[domain] || domain;
     }
 
     async render() {
@@ -151,18 +199,13 @@ class Widget extends DmYY {
             await this.renderStats(widget, data);
             await this.renderTable(widget, data);
             
+            widget.refreshAfterDate = new Date(Date.now() + 60 * 1000); // 1分钟后刷新
+            return widget;
         } catch (error) {
             console.error("创建小组件失败:", error);
-            const errorText = widget.addText("数据获取失败");
-            errorText.textColor = new Color("#ff5555");
-            errorText.font = Font.mediumSystemFont(14);
+            const errorWidget = await this.renderError(widget, error);
+            return errorWidget;
         }
-        
-        // 设置刷新时间
-        const interval = (this.settings.refreshInterval || 5) * 60 * 1000;
-        widget.refreshAfterDate = new Date(Date.now() + interval);
-        
-        return widget;
     }
 
     /**
@@ -182,6 +225,12 @@ class Widget extends DmYY {
             color: new Color("#BBBBBB")
         });
         
+        this.provideText("首次使用请先在服务器设置中配置正确的服务器地址", widget, {
+            size: 12,
+            color: new Color("#BBBBBB")
+        });
+        
+        widget.refreshAfterDate = new Date(Date.now() + 60 * 1000); // 1分钟后刷新
         return widget;
     }
 
@@ -202,6 +251,7 @@ class Widget extends DmYY {
             color: new Color("#BBBBBB")
         });
         
+        widget.refreshAfterDate = new Date(Date.now() + 60 * 1000); // 1分钟后刷新
         return widget;
     }
 
@@ -230,40 +280,46 @@ class Widget extends DmYY {
         statsRow.layoutHorizontally();
         statsRow.spacing = 8;
         
-        const statsStack = statsRow.addStack();
-        statsStack.layoutHorizontally();
-        statsStack.spacing = 8;
-        
-        // 上传统计
-        this.provideText(`↑${data.upload}`, statsStack, {
-            size: 8,
-            color: new Color("#50fa7b")
-        });
-        
-        // 下载统计
-        this.provideText(`↓${data.download}`, statsStack, {
-            size: 8,
-            color: new Color("#ff5555")
-        });
-        
-        // 做种数统计
-        this.provideText(`📦${data.seedCount}`, statsStack, {
-            size: 8,
-            color: new Color("#bd93f9")
-        });
-        
-        // 做种体积统计
-        this.provideText(`💾${data.seedSize}`, statsStack, {
-            size: 8,
-            color: new Color("#8be9fd")
-        });
+        // 左侧显示最低分享率站点
+        const sitesWithRatio = data.sites
+            .map(site => ({
+                ...site,
+                ratioValue: parseFloat(site.ratio)
+            }))
+            .filter(site => site.ratioValue > 0) // 只考虑有下载的站点
+            .sort((a, b) => a.ratioValue - b.ratioValue); // 按分享率从低到高排序
+
+        if (sitesWithRatio.length > 0) {
+            const lowestRatioSite = sitesWithRatio[0];
+            const warningStack = statsRow.addStack();
+            warningStack.layoutHorizontally();
+            warningStack.spacing = 4;
+            
+            // 警告图标
+            this.provideText("⚠️", warningStack, {
+                size: 8,
+                color: new Color("#ff5555")
+            });
+            
+            // 警告文本
+            this.provideText("最低分享率：", warningStack, {
+                size: 8,
+                color: new Color("#ff5555")
+            });
+            
+            // 显示最低分享率的站点
+            this.provideText(`${lowestRatioSite.name}(${lowestRatioSite.ratio})`, warningStack, {
+                size: 8,
+                color: new Color("#ff5555")
+            });
+        }
         
         statsRow.addSpacer();
         
-        // 添加更新时间
+        // 右侧显示更新时间
         const now = new Date();
         this.provideText(
-            `⏱️${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`,
+            `最后刷新：${now.getHours()}:${now.getMinutes().toString().padStart(2, "0")}`,
             statsRow,
             {
                 size: 8,
@@ -356,7 +412,7 @@ class Widget extends DmYY {
         // 添加分割线
         const divider = widget.addStack();
         const dividerLine = divider.addText("─".repeat(50));
-        dividerLine.font = Font.lightSystemFont(6);
+        dividerLine.font = Font.systemFont(6);
         dividerLine.textColor = new Color("#6272a4");
         
         widget.addSpacer(4);
@@ -442,6 +498,27 @@ class Widget extends DmYY {
                 });
             });
         }
+        
+        widget.refreshAfterDate = new Date(Date.now() + 60 * 1000); // 1分钟后刷新
+        return widget;
+    }
+
+    /**
+     * 渲染错误信息
+     */
+    async renderError(widget, error) {
+        widget.addSpacer(10);
+        const errorText = widget.addText("加载数据失败");
+        errorText.textColor = new Color("#ff5555"); // Dracula Red
+        errorText.font = Font.mediumSystemFont(14);
+
+        widget.addSpacer(5);
+        const errorMessage = widget.addText(error.message || "未知错误");
+        errorMessage.textColor = new Color("#BBBBBB");
+        errorMessage.font = Font.systemFont(10);
+
+        widget.refreshAfterDate = new Date(Date.now() + 60 * 1000); // 1分钟后刷新
+        return widget;
     }
 
     // 数据获取方法
@@ -458,7 +535,7 @@ class Widget extends DmYY {
             const apiUrl = baseUrl + (baseUrl.endsWith('/') ? '' : '/') + 
                           (statPath.startsWith('/') ? statPath.substring(1) : statPath);
             
-            console.log("请求数据URL:", apiUrl);
+            console.log("请求数据URL:", apiUrl); // 打印请求的URL
             
             const request = new Request(apiUrl);
             request.headers = {
@@ -471,7 +548,7 @@ class Widget extends DmYY {
             
             console.log("发送数据请求...");
             const response = await request.loadJSON();
-            console.log("收到数据响应:", JSON.stringify(response));
+            console.log("收到数据响应:", JSON.stringify(response)); // 打印响应数据
             
             if (!response) {
                 throw new Error("响应数据为空");
@@ -481,10 +558,27 @@ class Widget extends DmYY {
         } catch (error) {
             console.error("获取数据失败:", error);
             if (error.message.includes("401")) {
+                // 检测到cookie过期，尝试使用存储的账号密码自动重新登录
+                if (this.settings.username && this.settings.password) {
+                    console.log("Cookie已过期，尝试自动重新登录...");
+                    try {
+                        const newCookie = await this.login(this.settings.username, this.settings.password);
+                        if (newCookie) {
+                            this.settings.cookie = newCookie;
+                            this.saveSettings(false);
+                            console.log("自动重新登录成功，重新获取数据");
+                            // 递归调用自身，使用新的cookie重新获取数据
+                            return await this.fetchData();
+                        }
+                    } catch (loginError) {
+                        console.error("自动重新登录失败:", loginError);
+                    }
+                }
+                // 如果自动重新登录失败或没有存储的账号密码，则清除cookie
                 this.settings.cookie = '';
                 this.saveSettings();
             }
-            throw error; // 向上传递错误以便显示
+            throw error;
         }
     }
 
@@ -493,7 +587,13 @@ class Widget extends DmYY {
         alert.title = "MoviePilot 登录";
         alert.message = "请输入MoviePilot账号密码\n首次使用请先在服务器设置中配置正确的服务器地址";
         
-        alert.addTextField("用户名");
+        // 如果已有存储的用户名，则预填充
+        if (this.settings.username) {
+            alert.addTextField("用户名", this.settings.username);
+        } else {
+            alert.addTextField("用户名");
+        }
+        
         alert.addSecureTextField("密码");
         alert.addAction("登录");
         alert.addCancelAction("取消");
@@ -513,6 +613,9 @@ class Widget extends DmYY {
                 const cookie = await this.login(username, password);
                 if (cookie) {
                     this.settings.cookie = cookie;
+                    // 保存账号密码
+                    this.settings.username = username;
+                    this.settings.password = password;
                     this.saveSettings(false);
                     await this.notify("登录成功", "账号设置已保存");
                     return cookie;
@@ -564,30 +667,6 @@ class Widget extends DmYY {
         }
     }
 
-    // 设置刷新间隔
-    async setRefreshInterval() {
-        const alert = new Alert();
-        alert.title = "设置刷新间隔";
-        alert.message = "请输入数据刷新间隔时间（分钟）\n推荐设置：5-30分钟\n设置过小可能会增加服务器负载\n当前设置：" + (this.settings.refreshInterval || 5) + "分钟";
-        
-        alert.addTextField("刷新间隔（分钟）");
-        alert.addAction("保存");
-        alert.addCancelAction("取消");
-        
-        const result = await alert.present();
-        
-        if (result === 0) {
-            const interval = parseInt(alert.textFieldValue(0));
-            if (interval > 0) {
-                this.settings.refreshInterval = interval;
-                this.saveSettings(false);
-                await this.notify("设置成功", `刷新间隔已设置为 ${interval} 分钟`);
-            } else {
-                await this.notify("设置失败", "请输入大于0的数字");
-            }
-        }
-    }
-
     // 添加服务器配置方法
     async setServerConfig() {
         const alert = new Alert();
@@ -616,6 +695,7 @@ class Widget extends DmYY {
             if (url) {
                 this.settings.baseUrl = url;
                 this.saveSettings(false);
+                console.log("服务器地址已更新为:", url); // 打印更新的服务器地址
                 await this.notify("设置成功", "服务器地址已更新");
             } else {
                 await this.notify("设置失败", "服务器地址不能为空");
@@ -636,6 +716,9 @@ class Widget extends DmYY {
         
         if (result === 0) {
             this.settings.cookie = '';
+            // 同时清除账号密码
+            this.settings.username = '';
+            this.settings.password = '';
             this.saveSettings(false);
             await this.notify("清除成功", "账号已清除");
         }
@@ -647,61 +730,76 @@ class Widget extends DmYY {
             download: "0",
             seedCount: "0",
             seedSize: "0",
+            userLevel: "-",
+            bonus: "0",
+            ratio: "0",
             sites: []
         };
         
         try {
-            // 解析总计数据
-            const cards = response[0].content;
-            cards.forEach(col => {
-                if (col.content && col.content[0] && col.content[0].content) {
-                    const cardText = col.content[0].content[0].content;
-                    const textContent = cardText[1].content;
-                    if (textContent) {
-                        const caption = textContent[0].text;
-                        const value = textContent[1].content[0].text;
-                        switch (caption) {
-                            case "总上传量": stats.upload = value; break;
-                            case "总下载量": stats.download = value; break;
-                            case "总做种数": stats.seedCount = value; break;
-                            case "总做种体积": stats.seedSize = value; break;
-                        }
-                    }
-                }
-            });
+            // 计算总计数据
+            let totalUpload = 0;
+            let totalDownload = 0;
+            let totalSeeding = 0;
+            let totalSeedingSize = 0;
+            let totalBonus = 0;
+            let maxLevel = "";
             
             // 解析站点数据
-            const tableData = response[0].content.find(col => 
-                col.content?.[0]?.component === "VTable"
-            );
-            
-            if (tableData) {
-                const tbody = tableData.content[0].content.find(item => 
-                    item.component === "tbody"
-                );
+            response.forEach(site => {
+                // 累加总计数据
+                totalUpload += site.upload;
+                totalDownload += site.download;
+                totalSeeding += site.seeding;
+                totalSeedingSize += site.seeding_size;
+                totalBonus += site.bonus;
                 
-                if (tbody && tbody.content) {
-                    stats.sites = tbody.content.map(row => {
-                        const cells = row.content;
-                        return {
-                            name: cells[0].text || "-",
-                            level: cells[2].text || "-",
-                            upload: cells[3].text || "0",
-                            download: cells[4].text || "0",
-                            ratio: cells[5].text?.toString() || "0",
-                            bonus: cells[6].text?.toString() || "0",
-                            seeds: cells[7].text?.toString() || "0",
-                            size: cells[8].text || "0"
-                        };
-                    });
+                // 更新最高等级
+                if (site.user_level && (!maxLevel || this.getLevelWeight(site.user_level) > this.getLevelWeight(maxLevel))) {
+                    maxLevel = site.user_level;
                 }
-            }
+                
+                // 转换数据单位
+                const upload = this.formatSize(site.upload);
+                const download = this.formatSize(site.download);
+                const seedingSize = this.formatSize(site.seeding_size);
+                
+                // 添加到站点列表
+                stats.sites.push({
+                    name: this.getSiteName(site.domain),
+                    level: site.user_level || "-",
+                    upload: upload,
+                    download: download,
+                    ratio: site.ratio.toString(),
+                    bonus: site.bonus.toString(),
+                    seeds: site.seeding.toString(),
+                    size: seedingSize
+                });
+            });
+            
+            // 设置总计数据
+            stats.upload = this.formatSize(totalUpload);
+            stats.download = this.formatSize(totalDownload);
+            stats.seedCount = totalSeeding.toString();
+            stats.seedSize = this.formatSize(totalSeedingSize);
+            stats.userLevel = maxLevel || "-";
+            stats.bonus = this.formatNumber(totalBonus);
+            stats.ratio = totalDownload > 0 ? (totalUpload / totalDownload).toFixed(3) : "0";
             
             return stats;
         } catch (error) {
             console.error("数据解析错误:", error);
             throw error;
         }
+    }
+
+    // 格式化文件大小
+    formatSize(bytes) {
+        if (bytes === 0) return "0.0B";
+        const k = 1024;
+        const sizes = ['B', 'K', 'M', 'G', 'T', 'P'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return (bytes / Math.pow(k, i)).toFixed(2) + sizes[i];
     }
 
     // 添加显示设置方法
@@ -729,6 +827,29 @@ class Widget extends DmYY {
             this.settings.seeds = !seeds;
             this.saveSettings();
         }
+    }
+
+    // 格式化数字（添加千位分隔符）
+    formatNumber(num) {
+        return num.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+
+    // 获取等级权重（用于比较等级高低）
+    getLevelWeight(level) {
+        const weights = {
+            "User": 1,
+            "Power User": 2,
+            "Elite User": 3,
+            "Crazy User": 4,
+            "Insane User": 5,
+            "Veteran User": 6,
+            "Extreme User": 7,
+            "Ultimate User": 8,
+            "Nexus Master": 9,
+            "VIP": 10,
+            "(金玉满堂)VIP": 11
+        };
+        return weights[level] || 0;
     }
 }
 
@@ -942,17 +1063,6 @@ async function createWidget() {
         
         statsRow.addSpacer(); // 添加弹性空间，将时间推到右边
         
-        // 添加更新时间
-        const now = new Date();
-        const timeText = statsRow.addText(
-            `⏱️${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-        );
-        timeText.font = Font.systemFont(8);
-        timeText.textColor = new Color("#6272a4");
-        timeText.lineLimit = 1;
-        
-        widget.addSpacer(1);
-        
         // 分割线
         const divider = widget.addStack();
         const dividerLine = divider.addText("─".repeat(50));
@@ -1039,14 +1149,17 @@ async function createWidget() {
             });
         }
         
+        widget.refreshAfterDate = new Date(Date.now() + 60 * 1000); // 1分钟后刷新
+        return widget;
     } catch (error) {
         console.error("创建小组件失败:", error);
         const errorText = widget.addText("数据获取失败");
         errorText.textColor = new Color("#ff5555");
         errorText.font = Font.mediumSystemFont(14);
+        
+        errorText.refreshAfterDate = new Date(Date.now() + 60 * 1000); // 1分钟后刷新
+        return errorText;
     }
-    
-    return widget;
 }
 
 // 注册组件
